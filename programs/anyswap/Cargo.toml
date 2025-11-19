@@ -1,12 +1,12 @@
 [package]
-name = "fucksol2"
+name = "anyswap"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "fucksol2"
+name = "anyswap"
 
 [features]
 default = []
@@ -23,6 +23,9 @@ custom-panic = []
 [dependencies]
 anchor-lang = "0.32.1"
 anchor-spl = "0.32.1"
+bytemuck = { version = "1.14", features = ["derive"] }
+spl-token = "4.0"
+static_assertions = "1.1"
 
 
 [lints.rust]

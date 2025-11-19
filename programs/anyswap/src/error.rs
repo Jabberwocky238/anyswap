@@ -18,5 +18,15 @@ pub enum ErrorCode {
     InsufficientOutputAmount,
     #[msg("无效的代币 mint 地址")]
     InvalidTokenMint,
+    #[msg("无效的 token 数量")]
+    InvalidTokenCount,
+    #[msg("已达到最大 token 数量限制")]
+    MaxTokensReached,
+    #[msg("无效的 token 索引")]
+    InvalidTokenIndex,
+    #[msg("不能交换相同的 token")]
+    SameTokenSwap,
+    #[msg("无效的管理员")]
+    InvalidAdmin,
 }
 

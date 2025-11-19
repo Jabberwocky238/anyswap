@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "programs/fucksol2"
+    "programs/anyswap"
 ]
 exclude = [
     "programs/ammv2"
