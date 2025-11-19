@@ -103,14 +103,14 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
             vault_info.key.to_bytes() == token_item.vault_pubkey().to_bytes(),
             ErrorCode::InvalidTokenMint
         );
-        require!(
-            *vault_info.owner == pool_authority_key,
-            ErrorCode::InvalidTokenMint
-        );
 
-        // 读取 vault 余额（立即读取并释放 Account 对象）
+        // 读取 vault 账户并验证 owner 是 pool_authority
         let vault_balance = {
             let vault_account = Account::<TokenAccount>::try_from_unchecked(vault_info)?;
+            require!(
+                vault_account.owner == pool_authority_key,
+                ErrorCode::InvalidTokenMint
+            );
             vault_account.amount as u128
         };
         
@@ -124,6 +124,7 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
         amounts.push(amount);
     }
 
+    drop(pool);
     // 更新 total_amount_minted
     let mut pool_mut = ctx.accounts.pool.load_mut()?;
     let current_total = pool_mut.get_total_amount_minted();
@@ -138,9 +139,10 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
         let user_token_info = &remaining_accounts[i * 2];
         let vault_info = &remaining_accounts[i * 2 + 1];
         
-        // 验证 user_token owner
+        // 验证 user_token owner（从 TokenAccount 数据中读取）
+        let user_token_account = Account::<TokenAccount>::try_from_unchecked(user_token_info)?;
         require!(
-            *user_token_info.owner == owner_key,
+            user_token_account.owner == owner_key,
             ErrorCode::InvalidTokenMint
         );
 
@@ -158,16 +160,15 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
         )?;
     }
 
-    // 销毁用户的 LP token
+    // 销毁用户的 LP token（用户自己签名销毁）
     token::burn(
-        CpiContext::new_with_signer(
+        CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             Burn {
                 mint: ctx.accounts.pool_mint.to_account_info(),
                 from: ctx.accounts.user_pool_ata.to_account_info(),
-                authority: ctx.accounts.pool_authority.to_account_info(),
+                authority: ctx.accounts.owner.to_account_info(),
             },
-            signer,
         ),
         burn_amount,
     )?;

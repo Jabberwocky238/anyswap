@@ -1,10 +1,13 @@
 # AnySwap
 
-一个基于 Solana 的去中心化多 token 自动做市商（AMM），支持最多 **1024 个 token** 在同一个池中进行交换。
+AnySwap 是一个**超越并碾压 Balancer** 的多 token 交换系统。Balancer 受限于硬编码的 8 个 token，而 AnySwap 支持最多 **1024 个 token** 在同一个流动性池中自由交换。这使得 AnySwap 能够支持更复杂的 DeFi 场景，如大型指数基金、多资产组合池等，是 Balancer 无法企及的。
 
-## 📖 项目简介
+## 📍 程序部署地址
 
-AnySwap 是一个**超越并碾压 Balancer** 的多 token 交换系统。Balancer 受限于硬编码的 8 个 token，而 AnySwap 支持最多 **1024 个 token** 在同一个流动性池中自由交换，是 Balancer 的 **128 倍扩展能力**。这使得 AnySwap 能够支持更复杂的 DeFi 场景，如大型指数基金、多资产组合池等，是 Balancer 无法企及的。
+| Network | Program ID | IDL Account |
+|---------|------------|-------------|
+| Devnet  | `3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC` | `AHeBfQGsvCtWn2hFV3CrenfcqM38yk4ZAZMg2ZixQHPP` |
+| Mainnet | 未部署 | - |
 
 ## 🔬 核心原理
 
@@ -116,7 +119,7 @@ anchor test
 
 ```typescript
 import { Program } from "@coral-xyz/anchor";
-import { Fucksol2 } from "./target/types/fucksol2";
+import { Anyswap } from "./target/types/anyswap";
 
 // 创建池子
 await program.methods

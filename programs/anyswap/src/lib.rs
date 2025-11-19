@@ -5,10 +5,10 @@ pub mod state;
 pub mod error;
 
 use instructions::*;
-declare_id!("DLysqmqcrGm9nkaRfyq3Ys1FJsDDnGYwAdoZxBGKQBJt");
+declare_id!("3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC");
 
 #[program]
-pub mod fucksol2 {
+pub mod anyswap {
 
     use super::*;
 

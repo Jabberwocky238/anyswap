@@ -1,0 +1,1035 @@
+{
+  "address": "3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC",
+  "metadata": {
+    "name": "anyswap",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_liquidity",
+      "docs": [
+        "添加流动性（多 token 版本，按 Balancer 方式）",
+        "amounts: 每个 token 的添加数量（按 pool 中 token 的顺序）",
+        "RemainingAccounts: 每两个账户为一对 (user_token_account, vault_account)"
+      ],
+      "discriminator": [
+        181,
+        157,
+        89,
+        67,
+        143,
+        182,
+        52,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "docs": [
+            "Pool authority PDA"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  121,
+                  115,
+                  119,
+                  97,
+                  112,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_mint",
+          "docs": [
+            "Pool mint - LP token"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_pool_ata",
+          "docs": [
+            "用户的 LP token 账户（接收 LP token）"
+          ],
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amounts",
+          "type": {
+            "vec": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "add_token_to_pool",
+      "docs": [
+        "添加 token 到 AnySwap Pool",
+        "RemainingAccounts: 如果 pool 中已有 token，需要传入现有 vault 的账户信息"
+      ],
+      "discriminator": [
+        35,
+        121,
+        233,
+        111,
+        213,
+        155,
+        197,
+        192
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "docs": [
+            "Pool authority PDA - 用于管理所有 vault"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  121,
+                  115,
+                  119,
+                  97,
+                  112,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "Token 的 mint 账户"
+          ]
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "Token 的 vault 账户（存储该 token 的账户）",
+            "作为 PDA 由程序自动创建，owner 是 pool_authority",
+            "地址：seeds = [b\"vault\", pool.key(), mint.key()]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_token",
+          "docs": [
+            "Admin 的 token 账户（提供流动性）",
+            "如果 pool 中已有流动性，必须提供新 token 的流动性",
+            "使用 AssociatedToken 自动验证是 admin 的 ATA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Pool 管理员 - 必须签名所有操作"
+          ],
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "支付创建 vault 账户的费用"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "weight",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_pool",
+      "docs": [
+        "创建 Pool（PDA）"
+      ],
+      "discriminator": [
+        233,
+        146,
+        209,
+        142,
+        207,
+        104,
+        64,
+        188
+      ],
+      "accounts": [
+        {
+          "name": "pool_creator",
+          "docs": [
+            "Pool creator - 用于区分不同的 pool",
+            "可以是任何账户，只要保证唯一性即可"
+          ]
+        },
+        {
+          "name": "pool",
+          "docs": [
+            "Pool 账户",
+            "注意：账户必须由客户端预先创建（使用 SystemProgram.createAccount）",
+            "因为账户太大（约 72KB），超过了 Solana CPI 中重新分配的限制（10KB）",
+            "使用 #[account(zero)] 而不是 #[account(init)] 来避免重新分配",
+            "账户不是 PDA，而是普通账户（类似 Openbook 的 bids/asks），由客户端生成 Keypair"
+          ],
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "docs": [
+            "Pool authority PDA - 用于管理该 pool 的所有 vault"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  121,
+                  115,
+                  119,
+                  97,
+                  112,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_mint",
+          "docs": [
+            "Pool mint - LP token，用于跟踪流动性提供者的份额"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Pool 管理员 - 用于所有操作的权限控制",
+            "必须签名所有操作（swap、add liquidity、remove liquidity、add token、remove token、modify weight等）"
+          ],
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "pool_id",
+          "type": "u64"
+        },
+        {
+          "name": "fee_numerator",
+          "type": "u64"
+        },
+        {
+          "name": "fee_denominator",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "modify_fee",
+      "docs": [
+        "修改 pool 的费率"
+      ],
+      "discriminator": [
+        182,
+        121,
+        34,
+        171,
+        211,
+        156,
+        212,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Pool 管理员 - 必须签名费率修改操作"
+          ],
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "fee_numerator",
+          "type": "u64"
+        },
+        {
+          "name": "fee_denominator",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "modify_token_weight",
+      "docs": [
+        "修改 token 的 weight"
+      ],
+      "discriminator": [
+        239,
+        78,
+        110,
+        20,
+        65,
+        97,
+        193,
+        233
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "要修改的 token 的 mint 账户"
+          ]
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Pool 管理员 - 必须签名所有操作"
+          ],
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_weight",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "remove_liquidity",
+      "docs": [
+        "移除流动性（多 token 版本，按 Balancer 方式）",
+        "burn_amount: 要销毁的 LP token 数量",
+        "RemainingAccounts: 每两个账户为一对 (user_token_account, vault_account)"
+      ],
+      "discriminator": [
+        80,
+        85,
+        209,
+        72,
+        24,
+        206,
+        177,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "docs": [
+            "Pool authority PDA"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  121,
+                  115,
+                  119,
+                  97,
+                  112,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_mint",
+          "docs": [
+            "Pool mint - LP token"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_pool_ata",
+          "docs": [
+            "用户的 LP token 账户（销毁 LP token）"
+          ],
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "burn_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "remove_token_from_pool",
+      "docs": [
+        "从 AnySwap Pool 移除 token"
+      ],
+      "discriminator": [
+        104,
+        117,
+        82,
+        78,
+        25,
+        2,
+        55,
+        49
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "要移除的 token 的 mint 账户"
+          ]
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Pool 管理员 - 必须签名所有操作"
+          ],
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "swap_anyswap",
+      "docs": [
+        "AnySwap 交换代币"
+      ],
+      "discriminator": [
+        61,
+        6,
+        148,
+        45,
+        225,
+        156,
+        61,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "docs": [
+            "Pool authority PDA - 用于管理所有 vault"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  121,
+                  115,
+                  119,
+                  97,
+                  112,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_in",
+          "docs": [
+            "输入 token 的 vault 账户"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vault_out",
+          "docs": [
+            "输出 token 的 vault 账户"
+          ],
+          "writable": true
+        },
+        {
+          "name": "user_in",
+          "docs": [
+            "用户的输入代币账户（转出代币）"
+          ],
+          "writable": true
+        },
+        {
+          "name": "user_out",
+          "docs": [
+            "用户的输出代币账户（接收代币）"
+          ],
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "user_in",
+            "user_out"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_amount_out",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AnySwapPool",
+      "discriminator": [
+        163,
+        124,
+        202,
+        65,
+        144,
+        69,
+        54,
+        192
+      ],
+      "type": {
+        "defined": "AnySwapPool"
+      },
+      "size": 73792
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidTokenOrder",
+      "msg": "代币顺序无效：token_0 的地址必须小于 token_1"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidLpMint",
+      "msg": "LP Mint 地址不匹配"
+    },
+    {
+      "code": 6002,
+      "name": "MathOverflow",
+      "msg": "数学运算溢出"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientLiquidity",
+      "msg": "流动性不足"
+    },
+    {
+      "code": 6004,
+      "name": "InsufficientTokenAmount",
+      "msg": "代币数量不足"
+    },
+    {
+      "code": 6005,
+      "name": "InsufficientReserves",
+      "msg": "储备量不足"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientOutputAmount",
+      "msg": "输出数量不足（滑点过大）"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidTokenMint",
+      "msg": "无效的代币 mint 地址"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidTokenCount",
+      "msg": "无效的 token 数量"
+    },
+    {
+      "code": 6009,
+      "name": "MaxTokensReached",
+      "msg": "已达到最大 token 数量限制"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidTokenIndex",
+      "msg": "无效的 token 索引"
+    },
+    {
+      "code": 6011,
+      "name": "SameTokenSwap",
+      "msg": "不能交换相同的 token"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidAdmin",
+      "msg": "无效的管理员"
+    }
+  ],
+  "types": [
+    {
+      "name": "AnySwapItem",
+      "docs": [
+        "Token 配置项",
+        "每个 item 记录一个 token 的 vault、mint 和 weight，用于多 token 互相转换",
+        "遵循恒定乘积和公式：Σ(vault * weight) = constant"
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault_account",
+            "docs": [
+              "Vault account 地址 - 存储该 token 的账户 (32 bytes)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "mint_account",
+            "docs": [
+              "Mint account 地址 - 该 token 的 mint 地址 (32 bytes)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "weight",
+            "docs": [
+              "权重 (weight) - 不变量，用于恒定乘积和公式计算 (8 bytes)",
+              "weight 在添加 token 时设置，之后保持不变"
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AnySwapPool",
+      "docs": [
+        "AnySwap 池结构",
+        "",
+        "用于存储 token 列表（items 是内部数据，不是程序地址）",
+        "使用 zero_copy 以避免栈溢出（大数组需要）"
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "size": 73792,
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_count",
+            "docs": [
+              "实际使用的 token 数量（账户长度）"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "填充字节（确保 admin 8 字节对齐）"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
+            "name": "admin",
+            "docs": [
+              "Pool 管理员 - 用于所有操作的权限控制"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "total_amount_minted",
+            "docs": [
+              "LP token 总发行量（用于跟踪流动性提供者的份额）"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fee_numerator",
+            "docs": [
+              "手续费分子"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "fee_denominator",
+            "docs": [
+              "手续费分母"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "tokens",
+            "docs": [
+              "Token 配置数组，最多支持 1024 个 token（固定大小）",
+              "每个 item 是内部数据，不是程序地址"
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "AnySwapItem"
+                  }
+                },
+                1024
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

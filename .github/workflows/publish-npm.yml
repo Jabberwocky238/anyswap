@@ -1,0 +1,115 @@
+name: Publish to NPM
+
+on:
+  release:
+    types: [created]  # 当创建 release 时触发
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Anchor
+        uses: coral-xyz/anchor/actions/setup-anchor@v0
+        with:
+          anchor-version: '0.32.1'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          cd app && npm install
+
+      - name: Build Anchor program (generate types)
+        run: |
+          anchor build
+        env:
+          ANCHOR_PROVIDER_URL: ${{ secrets.ANCHOR_PROVIDER_URL || 'https://api.mainnet-beta.solana.com' }}
+
+      - name: Extract version from release or use input
+        id: get_version
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            # 从 release tag 中提取版本号
+            # 支持格式: v0.1.0, app-v0.1.0, 0.1.0 等
+            TAG_NAME="${{ github.event.release.tag_name }}"
+            # 移除前缀 (v, app-v 等)
+            VERSION=$(echo "$TAG_NAME" | sed 's/^app-v//' | sed 's/^v//')
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "release_id=${{ github.event.release.id }}" >> $GITHUB_OUTPUT
+          else
+            # 使用手动输入的版本号
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "release_id=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update package.json version
+        run: |
+          cd app
+          npm version ${{ steps.get_version.outputs.version }} --no-git-tag-version
+
+      - name: Build TypeScript library
+        run: |
+          cd app
+          npm run build
+
+      - name: Verify build output
+        run: |
+          cd app
+          if [ ! -f "dist/index.js" ]; then
+            echo "Build failed: dist/index.js not found"
+            exit 1
+          fi
+          if [ ! -f "dist/index.d.ts" ]; then
+            echo "Build failed: dist/index.d.ts not found"
+            exit 1
+          fi
+          echo "Build output verified successfully"
+
+      - name: Publish to NPM
+        run: |
+          cd app
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Update GitHub Release with NPM info
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          release_id: ${{ steps.get_version.outputs.release_id }}
+          body: |
+            ${{ github.event.release.body }}
+            
+            ---
+            
+            ## 📦 NPM Package
+            
+            Published to NPM: `@anyswap/client@${{ steps.get_version.outputs.version }}`
+            
+            Install:
+            ```bash
+            npm install @anyswap/client@${{ steps.get_version.outputs.version }}
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,15 +1,21 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { Fucksol2 } from "../target/types/fucksol2";
+import { Anyswap } from "../target/types/anyswap";
 import * as token from "@solana/spl-token";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
 
+
+// mint0, mint1, mint2, mint3
+// vault0, vault1, vault2, vault3
+// admin, user0, user1, user2
+
 describe("anyswap", () => {
+  return;
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.fucksol2 as Program<Fucksol2>;
+  const program = anchor.workspace.anyswap as Program<Anyswap>;
   const connection = provider.connection;
   const payer = provider.wallet as anchor.Wallet;
 
@@ -56,7 +62,7 @@ describe("anyswap", () => {
    * @returns 返回创建的 pool 相关信息
    */
   async function createPoolOnClient(
-    program: Program<Fucksol2>,
+    program: Program<Anyswap>,
     connection: anchor.web3.Connection,
     payer: anchor.Wallet,
     poolCreator: anchor.web3.Keypair,

@@ -6,13 +6,20 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-fucksol2 = "DLysqmqcrGm9nkaRfyq3Ys1FJsDDnGYwAdoZxBGKQBJt"
+anyswap = "3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC"
+
+[programs.devnet]
+anyswap = "3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[provider.devnet]
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
