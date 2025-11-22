@@ -75,6 +75,26 @@ impl AnySwapPool {
         }
     }
 
+    /// 根据 mint 地址获取 token item（不可变引用）
+    pub fn get_token_by_mint(&self, mint: &Pubkey) -> Option<&AnySwapItem> {
+        for i in 0..self.get_token_count() {
+            if self.tokens[i].mint_account == *mint {
+                return Some(&self.tokens[i]);
+            }
+        }
+        None
+    }
+
+    /// 根据 mint 地址获取 token 索引
+    pub fn get_token_index_by_mint(&self, mint: &Pubkey) -> Option<usize> {
+        for i in 0..self.get_token_count() {
+            if self.tokens[i].mint_account == *mint {
+                return Some(i);
+            }
+        }
+        None
+    }
+
     /// 根据索引获取 token item（不可变引用）
     pub fn get_token(&self, index: usize) -> Option<&AnySwapItem> {
         if index < self.get_token_count() {

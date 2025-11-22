@@ -10,17 +10,16 @@ use std::mem::size_of;
 #[derive(Debug)]
 pub struct AnySwapItem {
     /// Vault account 地址 - 存储该 token 的账户 (32 bytes)
-    pub vault_account: Pubkey,
+    pub vault_account: Pubkey, // 32 bytes
     /// Mint account 地址 - 该 token 的 mint 地址 (32 bytes)
-    pub mint_account: Pubkey,
+    pub mint_account: Pubkey, // 32 bytes
     /// 权重 (weight) - 不变量，用于恒定乘积和公式计算 (8 bytes)
     /// weight 在添加 token 时设置，之后保持不变
-    pub weight: u64,
+    pub weight: u64, // 64 bits (8 bytes)
 }
 
 // 验证结构体大小和对齐（Solana 要求 8 字节对齐）
 const_assert_eq!(size_of::<AnySwapItem>(), 32 + 32 + 8); // 72 bytes
-const_assert_eq!(size_of::<AnySwapItem>(), 72);
 const_assert_eq!(size_of::<AnySwapItem>() % 8, 0); // 必须是 8 的倍数
 
 impl AnySwapItem {

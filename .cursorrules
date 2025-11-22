@@ -8,4 +8,6 @@ tests/openbook-v2是标准的订单簿实现，你需要参考他来实现数组
 
 你需要根据ammv2的编程风格，实现一个多token交换系统。每一个token包含了vault，mint，weight。
 
-遵循恒定乘积和公式，weight是不变量，使得所有vault*weight的和在每次交易后都不变。
+遵循“权重恒定价值”公式。
+
+有效的避免了幂计算的同时，leverage到了CPMM的保护流动性优势。

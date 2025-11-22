@@ -26,7 +26,8 @@ anchor-spl = "0.32.1"
 bytemuck = { version = "1.14", features = ["derive"] }
 spl-token = "4.0"
 static_assertions = "1.1"
-
+primitive-types = "0.14" # Check crates.io for the latest version
+fixed = "1.29.0"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

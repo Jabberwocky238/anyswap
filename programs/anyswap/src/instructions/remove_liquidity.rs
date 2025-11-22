@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
 use crate::state::AnySwapPool;
+use crate::state::liquidity::remove_liquidity_inner;
 use crate::error::ErrorCode;
 
 /// 移除流动性操作
@@ -41,12 +42,12 @@ pub struct RemoveLiquidity<'info> {
 }
 
 /// 移除流动性（多 token 版本）
-/// 按照 Balancer 的方式：按 LP token 比例移除所有 token
+/// 按照 CPMM 模式：按 LP token 比例移除所有 token，扣除手续费
 /// 
 /// RemainingAccounts 结构：
-/// - 每个账户是一个 user_token_account（接收返回的 token）
+/// - 每两个账户为一对：(user_token_account, vault_account)
 /// - 必须按照 pool 中 token 的顺序传入
-/// - 例如：pool 有 [A, B, C]，则传入 [user_A, user_B, user_C]
+/// - 例如：pool 有 [A, B, C]，则传入 [user_A, vault_A, user_B, vault_B, user_C, vault_C]
 /// 
 /// burn_amount: 要销毁的 LP token 数量
 pub fn remove_liquidity<'remaining: 'info, 'info>(
@@ -77,10 +78,45 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
         ErrorCode::InvalidTokenCount
     );
 
-    // 准备 seeds 用于签名
-    let pool_key = ctx.accounts.pool.key();
     let pool_authority_key = ctx.accounts.pool_authority.key();
     let owner_key = ctx.accounts.owner.key();
+
+    // 收集所有 vault 余额
+    let mut token_vault_balances: Vec<u64> = Vec::with_capacity(token_count);
+
+    for i in 0..token_count {
+        let vault_info = &remaining_accounts[i * 2 + 1];
+        
+        // 验证 vault
+        let token_item = pool.get_token(i).ok_or(ErrorCode::InvalidTokenIndex)?;
+        require!(
+            vault_info.key() == *token_item.vault_pubkey(),
+            ErrorCode::InvalidTokenMint
+        );
+
+        // 读取 vault 账户并验证 owner 是 pool_authority
+        let vault_account = Account::<TokenAccount>::try_from(vault_info)?;
+        require!(
+            vault_account.owner == pool_authority_key,
+            ErrorCode::InvalidTokenMint
+        );
+
+        token_vault_balances.push(vault_account.amount);
+    }
+
+    // 调用 remove_liquidity_inner
+    let result = remove_liquidity_inner(
+        &token_vault_balances,
+        burn_amount,
+        total_minted,
+        pool.get_fee_numerator(),
+        pool.get_fee_denominator(),
+    )?;
+
+    drop(pool);
+
+    // 准备 seeds 用于签名
+    let pool_key = ctx.accounts.pool.key();
     let bump = ctx.bumps.pool_authority;
     let seeds = &[
         b"anyswap_authority",
@@ -89,58 +125,18 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
     ];
     let signer = &[&seeds[..]];
 
-    let burn_amount_u128 = burn_amount as u128;
-    let mut amounts = Vec::new();
-
-    // 计算每个 token 要返回的数量
-    // 在循环中立即读取数据，不保留 Account 对象
-    for i in 0..token_count {
-        let vault_info = &remaining_accounts[i * 2 + 1];
-        
-        // 验证 vault
-        let token_item = pool.get_token(i).ok_or(ErrorCode::InvalidTokenIndex)?;
-        require!(
-            vault_info.key.to_bytes() == token_item.vault_pubkey().to_bytes(),
-            ErrorCode::InvalidTokenMint
-        );
-
-        // 读取 vault 账户并验证 owner 是 pool_authority
-        let vault_balance = {
-            let vault_account = Account::<TokenAccount>::try_from_unchecked(vault_info)?;
-            require!(
-                vault_account.owner == pool_authority_key,
-                ErrorCode::InvalidTokenMint
-            );
-            vault_account.amount as u128
-        };
-        
-        // amount = burn_amount * vault_balance / total_minted
-        let amount = (burn_amount_u128
-            .checked_mul(vault_balance)
-            .ok_or(ErrorCode::MathOverflow)?
-            .checked_div(total_minted as u128)
-            .ok_or(ErrorCode::MathOverflow)?) as u64;
-        
-        amounts.push(amount);
-    }
-
-    drop(pool);
-    // 更新 total_amount_minted
-    let mut pool_mut = ctx.accounts.pool.load_mut()?;
-    let current_total = pool_mut.get_total_amount_minted();
-    pool_mut.set_total_amount_minted(
-        current_total
-            .checked_sub(burn_amount)
-            .ok_or(ErrorCode::MathOverflow)?
-    );
-
     // 从 vault 转移所有 token 给用户
     for i in 0..token_count {
         let user_token_info = &remaining_accounts[i * 2];
         let vault_info = &remaining_accounts[i * 2 + 1];
         
-        // 验证 user_token owner（从 TokenAccount 数据中读取）
-        let user_token_account = Account::<TokenAccount>::try_from_unchecked(user_token_info)?;
+        // 跳过数量为0的token
+        if result.amounts_out[i] == 0 {
+            continue;
+        }
+
+        // 验证 user_token owner
+        let user_token_account = Account::<TokenAccount>::try_from(user_token_info)?;
         require!(
             user_token_account.owner == owner_key,
             ErrorCode::InvalidTokenMint
@@ -156,7 +152,7 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
                 },
                 signer,
             ),
-            amounts[i],
+            result.amounts_out[i],
         )?;
     }
 
@@ -173,10 +169,22 @@ pub fn remove_liquidity<'remaining: 'info, 'info>(
         burn_amount,
     )?;
 
+    // 更新 total_amount_minted
+    let mut pool_mut = ctx.accounts.pool.load_mut()?;
+    let current_total = pool_mut.get_total_amount_minted();
+    pool_mut.set_total_amount_minted(
+        current_total
+            .checked_sub(burn_amount)
+            .ok_or(ErrorCode::MathOverflow)?
+    );
+
+    let total_fees: u64 = result.burn_fees.iter().sum();
+
     msg!(
-        "Liquidity removed: {} LP tokens burned, {} tokens returned",
+        "Liquidity removed: {} LP tokens burned, {} tokens returned (total fees: {})",
         burn_amount,
-        token_count
+        token_count,
+        total_fees
     );
 
     Ok(())

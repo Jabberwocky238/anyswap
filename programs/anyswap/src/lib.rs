@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 pub mod instructions;
 pub mod state;
 pub mod error;
+pub mod math;
 
 use instructions::*;
 declare_id!("3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC");
@@ -54,22 +55,24 @@ pub mod anyswap {
     }
 
     /// AnySwap 交换代币
-    pub fn swap_anyswap(
-        ctx: Context<Swap>,
-        amount_in: u64,
-        min_amount_out: u64,
+    /// amounts_tolerance: 每个 token 的容差（输入为上限，输出为下限）
+    /// is_in_token: 标记每个 token 是输入还是输出
+    pub fn swap_anyswap<'remaining: 'info, 'info>(
+        ctx: Context<'_, '_, 'remaining, 'info, Swap<'info>>,
+        amounts_tolerance: Vec<u64>,
+        is_in_token: Vec<bool>,
     ) -> Result<()> {
-        instructions::swap_anyswap(ctx, amount_in, min_amount_out)
+        instructions::swap_anyswap(ctx, amounts_tolerance, is_in_token)
     }
 
     /// 添加流动性（多 token 版本，按 Balancer 方式）
-    /// amounts: 每个 token 的添加数量（按 pool 中 token 的顺序）
+    /// pivot_amount: 基准 token 的添加数量
     /// RemainingAccounts: 每两个账户为一对 (user_token_account, vault_account)
     pub fn add_liquidity<'remaining: 'info, 'info>(
         ctx: Context<'_, '_, 'remaining, 'info, AddLiquidity<'info>>,
-        amounts: Vec<u64>,
+        amounts_in: Vec<u64>,
     ) -> Result<()> {
-        instructions::add_liquidity(ctx, amounts)
+        instructions::add_liquidity(ctx, amounts_in)
     }
 
     /// 移除流动性（多 token 版本，按 Balancer 方式）
