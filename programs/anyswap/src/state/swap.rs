@@ -200,8 +200,9 @@ fn swap_inner<'info>(
         let weight_i256 = I256::from(weights[idx]);
         let delta = weight_i256 * LogExpMath::ln(vault_after_i256)?;
         delta_sum = delta_sum + delta;
-        // outputs记录实际输出
-        outputs[idx] = amount_out_min.as_u64();
+        // outputs记录实际输出（vault减少量）
+        let actual_output = amount_out_pool.as_u64() - vault_after.as_u64();
+        outputs[idx] = actual_output;
     }
 
     // 计算最后一个输出 token 应该的值

@@ -65,8 +65,19 @@ pub fn swap_anyswap<'remaining: 'info, 'info>(
         let user_token_info = &remaining_accounts[i * 2];
         let vault_info = &remaining_accounts[i * 2 + 1];
 
-        // 验证 vault
-        let token_item = pool.get_token(i).ok_or(ErrorCode::InvalidTokenIndex)?;
+        // 读取vault账户，获取其mint地址
+        let vault_account = Account::<TokenAccount>::try_from(vault_info)?;
+        require!(
+            vault_account.owner == pool_authority_key,
+            ErrorCode::InvalidTokenMint
+        );
+        
+        // 通过mint地址在pool中查找对应的token
+        let mint_key = vault_account.mint;
+        let token_item = pool.get_token_by_mint(&mint_key)
+            .ok_or(ErrorCode::InvalidTokenMint)?;
+        
+        // 验证 vault 地址是否匹配
         require!(
             vault_info.key() == *token_item.vault_pubkey(),
             ErrorCode::InvalidTokenMint
@@ -75,17 +86,11 @@ pub fn swap_anyswap<'remaining: 'info, 'info>(
         // 读取用户token账户
         let user_account = Account::<TokenAccount>::try_from(user_token_info)?;
         require!(user_account.owner == owner_key, ErrorCode::InvalidTokenMint);
+        require!(user_account.mint == mint_key, ErrorCode::InvalidTokenMint);
         user_vaults_amount.push(user_account.amount);
 
-        // 读取vault账户
-        let vault_account = Account::<TokenAccount>::try_from(vault_info)?;
-        require!(
-            vault_account.owner == pool_authority_key,
-            ErrorCode::InvalidTokenMint
-        );
+        // 收集vault余额和权重
         token_vaults_amount.push(vault_account.amount);
-
-        // 收集权重
         weights.push(token_item.get_weight());
     }
 
@@ -114,11 +119,15 @@ pub fn swap_anyswap<'remaining: 'info, 'info>(
         let vault_info = &remaining_accounts[i * 2 + 1];
         let amount = swap_result.amounts[i];
 
+        msg!("Token {}: amount={}, is_in={}", i, amount, is_in_token[i]);
+
         if amount == 0 {
+            msg!("Token {} amount is 0, skipping", i);
             continue;
         }
 
         if is_in_token[i] {
+            msg!("Transferring {} from user to vault (input)", amount);
             // 输入token：从用户转到vault
             token::transfer(
                 CpiContext::new(
@@ -132,6 +141,7 @@ pub fn swap_anyswap<'remaining: 'info, 'info>(
                 amount,
             )?;
         } else {
+            msg!("Transferring {} from vault to user (output)", amount);
             // 输出token：从vault转到用户
             token::transfer(
                 CpiContext::new_with_signer(

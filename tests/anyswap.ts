@@ -4,6 +4,7 @@ import { Anyswap } from "../target/types/anyswap";
 import * as token from "@solana/spl-token";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
+import { createPoolOnClient } from "./utils";
 
 
 // mint0, mint1, mint2, mint3
@@ -25,11 +26,10 @@ describe("anyswap", () => {
   let poolAuthorityBump: number;
   let poolMint: PublicKey;
   let poolCreator: Keypair;
-  const poolId = new anchor.BN(0); // 第一个 pool 使用 id 0
 
-  // 费率：5/1000 = 0.5%
-  const fee_numerator = new anchor.BN(5);
-  const fee_denominator = new anchor.BN(1000);
+  // 费率：3/10000 = 0.03%（与Rust测试保持一致）
+  const fee_numerator = new anchor.BN(3);
+  const fee_denominator = new anchor.BN(10000);
 
   // Token 相关 - 三个 token + SOL (WSOL)
   let mint0: PublicKey;
@@ -48,109 +48,7 @@ describe("anyswap", () => {
 
   const n_decimals = 9;
 
-  /**
-   * 在客户端创建 Pool 的辅助函数
-   * 因为 pool 账户太大（73KB），超过 CPI 的 10KB 限制，所以必须在客户端预先创建账户
-   * 
-   * @param program - Anchor 程序实例
-   * @param connection - Solana 连接
-   * @param payer - 支付账户
-   * @param poolCreator - Pool 创建者（可以是任何账户）
-   * @param poolId - Pool 的唯一标识符（u64）
-   * @param feeNumerator - 手续费分子
-   * @param feeDenominator - 手续费分母
-   * @returns 返回创建的 pool 相关信息
-   */
-  async function createPoolOnClient(
-    program: Program<Anyswap>,
-    connection: anchor.web3.Connection,
-    payer: anchor.Wallet,
-    poolCreator: anchor.web3.Keypair,
-    poolId: anchor.BN,
-    feeNumerator: anchor.BN,
-    feeDenominator: anchor.BN
-  ): Promise<{
-    pool: PublicKey;
-    poolAuthorityPda: PublicKey;
-    poolAuthorityBump: number;
-    poolMint: PublicKey;
-    signature: string;
-  }> {
-    // 创建 pool 账户（普通账户，不是 PDA，类似 Openbook 的 bids/asks）
-    // 使用 Keypair.generate() 创建，这样可以在客户端签名
-    const poolKeypair = anchor.web3.Keypair.generate();
-    const pool = poolKeypair.publicKey;
-    
-    // 计算 pool authority PDA（基于 pool 地址）
-    const [poolAuthorityPda, poolAuthorityBump] =
-      anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("anyswap_authority"), pool.toBuffer()],
-        program.programId
-      );
-
-    // 计算 pool mint PDA（基于 pool 地址）
-    const [poolMint] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("pool_mint"), pool.toBuffer()],
-      program.programId
-    );
-
-    console.log("Pool:", pool.toString());
-    console.log("Pool Authority PDA:", poolAuthorityPda.toString());
-    console.log("Pool Mint:", poolMint.toString());
-
-    // 计算账户大小：8 (discriminator) + 2 + 6 + 32 + 8 + 8 + 8 + (72 * 1024) = 73792 bytes
-    const poolSpace = 8 + 2 + 6 + 32 + 8 + 8 + 8 + (72 * 1024); // 73792 bytes
-    const lamports = await connection.getMinimumBalanceForRentExemption(poolSpace);
-
-    // 在客户端预先创建 pool 账户（类似 Openbook 的 bids/asks）
-    // 使用 createProgramAccountIx 创建账户指令
-    const createAccountIx = SystemProgram.createAccount({
-      fromPubkey: payer.publicKey,
-      newAccountPubkey: pool,
-      space: poolSpace,
-      lamports,
-      programId: program.programId,
-    });
-
-    // 创建 createPool 指令
-    // admin 使用 poolCreator 作为管理员
-    const createPoolIx = await program.methods
-      .createPool(poolId, feeNumerator, feeDenominator)
-      .accountsPartial({
-        poolCreator: poolCreator.publicKey,
-        pool: pool,
-        poolAuthority: poolAuthorityPda,
-        poolMint: poolMint,
-        admin: poolCreator.publicKey, // 使用 poolCreator 作为 admin
-        payer: payer.publicKey,
-        systemProgram: SystemProgram.programId,
-        tokenProgram: token.TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .instruction();
-
-    // 构建交易，包含创建账户和初始化 pool 两个指令
-    const tx = new anchor.web3.Transaction().add(
-      createAccountIx,
-      createPoolIx
-    );
-
-    // 发送交易，poolKeypair 和 poolCreator 作为签名者
-    // poolKeypair 用于创建账户，poolCreator 用于 admin 签名
-    const signature = await provider.sendAndConfirm(tx, [payer.payer, poolKeypair, poolCreator], {
-      skipPreflight: false,
-    });
-
-    console.log("创建 Pool 交易签名:", signature);
-
-    return {
-      pool,
-      poolAuthorityPda,
-      poolAuthorityBump,
-      poolMint,
-      signature,
-    };
-  }
+  
 
   it("在客户端创建 Pool", async () => {
     // 创建 pool creator
@@ -158,11 +56,11 @@ describe("anyswap", () => {
 
     // 使用辅助函数创建 pool
     const result = await createPoolOnClient(
+      provider,
       program,
       connection,
       payer,
       poolCreator,
-      poolId,
       fee_numerator,
       fee_denominator
     );
@@ -176,8 +74,8 @@ describe("anyswap", () => {
     // 验证 pool 账户
     const poolAccount = await program.account.anySwapPool.fetch(pool);
     expect(poolAccount.tokenCount).to.equal(0);
-    expect(poolAccount.feeNumerator.toNumber()).to.equal(5);
-    expect(poolAccount.feeDenominator.toNumber()).to.equal(1000);
+    expect(poolAccount.feeNumerator.toNumber()).to.equal(3);
+    expect(poolAccount.feeDenominator.toNumber()).to.equal(10000);
 
     console.log("Pool 创建成功:");
     console.log("  - Token Count:", poolAccount.tokenCount);
@@ -499,13 +397,12 @@ describe("anyswap", () => {
     console.log("Swap1 前 Vault2 余额:", vault2BalanceBeforeSwap1.amount.toString());
 
     // 3. 用户用 token1 交换 token2
-    // 权重是 40:40，所以 amount_out = amount_in_minus_fees
-    // 手续费 = swapAmount1 * 5 / 1000 = 50 * 10^9
-    // amount_in_minus_fees = 10000 * 10^9 - 50 * 10^9 = 9950 * 10^9
-    // amount_out = (9950 * 10^9 * 40) / 40 = 9950 * 10^9
-    const expectedFee1 = Math.floor(swapAmount1 * 5 / 1000); // 50 * 10^9
-    const expectedAmountInMinusFees1 = swapAmount1 - expectedFee1; // 9950 * 10^9
-    const expectedAmountOut1 = Math.floor((expectedAmountInMinusFees1 * 40) / 40); // 9950 * 10^9
+    // 加权CPMM公式: sum(weight_i * ln(vault_i)) = constant
+    // Swap前: token0=10T(w=20), token1=20T(w=40), token2=20T(w=40)
+    // 输入: 10T token1, 扣费后: 9.997T
+    // 根据公式计算得出预期输出
+    const expectedFee1 = Math.floor(swapAmount1 * 3 / 10000); // 2999999999
+    const expectedOut1 = 6665333199986; // Python精确计算值
 
     // 创建用户的 token2 账户
     const userToken2Account = await token.createAssociatedTokenAccount(
@@ -516,37 +413,56 @@ describe("anyswap", () => {
     );
 
     // 执行第一次 swap: token1 -> token2
+    // 只传入参与swap的token（token1和token2）
+    const amounts_tolerance1 = [
+      new anchor.BN(swapAmount1), // token1: 输入上限
+      new anchor.BN(0),           // token2: 输出下限（0表示接受任何数量）
+    ];
+    const is_in_token1 = [true, false]; // token1是输入，token2是输出
+    
+    // 增加计算单元限制（swap需要更多CU用于数学计算）
+    const modifyComputeUnits = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+      units: 400000
+    });
+    
     await program.methods
-      .swapAnyswap(
-        new anchor.BN(swapAmount1),
-        new anchor.BN(0) // min_amount_out = 0，接受任何输出
-      )
+      .swapAnyswap(amounts_tolerance1, is_in_token1)
       .accountsPartial({
         pool: pool,
-        vaultIn: vault1,
-        vaultOut: vault2,
-        userIn: userToken1Account,
-        userOut: userToken2Account,
+        poolAuthority: poolAuthorityPda,
         owner: user.publicKey,
+        tokenProgram: token.TOKEN_PROGRAM_ID,
       })
+      .remainingAccounts([
+        // 只传入参与swap的token的账户
+        { pubkey: userToken1Account, isSigner: false, isWritable: true },
+        { pubkey: vault1, isSigner: false, isWritable: true },
+        { pubkey: userToken2Account, isSigner: false, isWritable: true },
+        { pubkey: vault2, isSigner: false, isWritable: true },
+      ])
+      .preInstructions([modifyComputeUnits])
       .signers([user])
       .rpc();
 
     // 验证用户 token2 余额
     const userToken2Balance = await token.getAccount(connection, userToken2Account);
-    expect(userToken2Balance.amount.toString()).to.equal(expectedAmountOut1.toString());
-    console.log("Swap1 后用户 token2 余额:", userToken2Balance.amount.toString());
-    console.log("预期 token2 余额:", expectedAmountOut1.toString());
+    const actualOut1 = Number(userToken2Balance.amount);
+    // 允许±1的精度误差
+    expect(Math.abs(actualOut1 - expectedOut1)).to.be.lessThanOrEqual(1);
+    console.log("Swap1 实际输出:", actualOut1.toLocaleString());
+    console.log("Swap1 预期输出:", expectedOut1.toLocaleString());
+    console.log("Swap1 输出误差:", actualOut1 - expectedOut1);
 
     // 验证 vault 余额变化
     const vault1BalanceAfterSwap1 = await token.getAccount(connection, vault1);
     const vault2BalanceAfterSwap1 = await token.getAccount(connection, vault2);
     const vault1Increase = Number(vault1BalanceAfterSwap1.amount) - Number(vault1BalanceBeforeSwap1.amount);
     const vault2Decrease = Number(vault2BalanceBeforeSwap1.amount) - Number(vault2BalanceAfterSwap1.amount);
-    expect(vault1Increase).to.equal(swapAmount1); // vault1 应该增加 swapAmount1
-    expect(vault2Decrease).to.equal(expectedAmountOut1); // vault2 应该减少 expectedAmountOut1
-    console.log("Swap1 后 Vault1 余额:", vault1BalanceAfterSwap1.amount.toString());
-    console.log("Swap1 后 Vault2 余额:", vault2BalanceAfterSwap1.amount.toString());
+    const amountInAfterFee = swapAmount1 - expectedFee1; // 扣除手续费后进入vault的金额
+    expect(vault1Increase).to.equal(amountInAfterFee); // vault1 增加扣费后的金额
+    expect(Math.abs(vault2Decrease - expectedOut1)).to.be.lessThanOrEqual(1); // vault2 减少输出量（允许±1误差）
+    console.log("Swap1 后 Vault1 增加:", vault1Increase.toLocaleString(), "(扣费后)");
+    console.log("Swap1 后 Vault2 减少:", vault2Decrease.toLocaleString());
 
     // 4. 管理员修改权重为 40, 20, 40
     // 当前权重是 20, 40, 40，需要改为 40, 20, 40
@@ -580,13 +496,12 @@ describe("anyswap", () => {
     console.log("  - Token1 weight:", poolAccountAfterWeightChange.tokens[1].weight.toString());
     console.log("  - Token2 weight:", poolAccountAfterWeightChange.tokens[2].weight.toString());
 
-    // 5. 用户用 token2 交换 token3 (token0)
-    // 权重是 40:40，所以 amount_out = amount_in_minus_fees * 40 / 40
-    const swapAmount2 = Number(userToken2Balance.amount); // 使用所有 token2
-    const expectedFee2 = Math.floor(swapAmount2 * 5 / 1000);
-    const expectedAmountInMinusFees2 = swapAmount2 - expectedFee2;
-    // 权重 40:40，所以 amount_out = amount_in_minus_fees2
-    const expectedAmountOut2 = Math.floor((expectedAmountInMinusFees2 * 40) / 40);
+    // 5. 用户用 token2 交换 token0
+    // 权重修改后: token0=40, token1=20, token2=40
+    // Swap后vault: token0=10T, token1=29.997T, token2=13.334666800014T
+    const swapAmount2 = actualOut1; // 使用所有 token2
+    const expectedFee2 = Math.floor(swapAmount2 * 3 / 10000); // 1999599959
+    const expectedOut2 = 3331999933359; // Python精确计算值
 
     // 创建用户的 token0 账户
     const userToken0Account = await token.createAssociatedTokenAccount(
@@ -601,27 +516,44 @@ describe("anyswap", () => {
     const vault0BalanceBeforeSwap2 = await token.getAccount(connection, vault0);
 
     // 执行第二次 swap: token2 -> token0
+    // 只传入参与swap的token（token2和token0）
+    const amounts_tolerance2 = [
+      new anchor.BN(swapAmount2), // token2: 输入上限
+      new anchor.BN(0),           // token0: 输出下限（接受任何数量）
+    ];
+    const is_in_token2 = [true, false]; // token2是输入，token0是输出
+    
+    const modifyComputeUnits2 = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+      units: 400000
+    });
+    
     await program.methods
-      .swapAnyswap(
-        new anchor.BN(swapAmount2),
-        new anchor.BN(0)
-      )
+      .swapAnyswap(amounts_tolerance2, is_in_token2)
       .accountsPartial({
         pool: pool,
-        vaultIn: vault2,
-        vaultOut: vault0,
-        userIn: userToken2Account,
-        userOut: userToken0Account,
+        poolAuthority: poolAuthorityPda,
         owner: user.publicKey,
+        tokenProgram: token.TOKEN_PROGRAM_ID,
       })
+      .remainingAccounts([
+        // 只传入参与swap的token的账户
+        { pubkey: userToken2Account, isSigner: false, isWritable: true },
+        { pubkey: vault2, isSigner: false, isWritable: true },
+        { pubkey: userToken0Account, isSigner: false, isWritable: true },
+        { pubkey: vault0, isSigner: false, isWritable: true },
+      ])
+      .preInstructions([modifyComputeUnits2])
       .signers([user])
       .rpc();
 
-    // 6. 验证 token0 数量是否符合预期
+    // 6. 验证 token0 数量
     const userToken0Balance = await token.getAccount(connection, userToken0Account);
-    expect(userToken0Balance.amount.toString()).to.equal(expectedAmountOut2.toString());
-    console.log("Swap2 后用户 token0 余额:", userToken0Balance.amount.toString());
-    console.log("预期 token0 余额:", expectedAmountOut2.toString());
+    const actualOut2 = Number(userToken0Balance.amount);
+    // 允许±2的精度误差（两次swap累积）
+    expect(Math.abs(actualOut2 - expectedOut2)).to.be.lessThanOrEqual(2);
+    console.log("Swap2 实际输出:", actualOut2.toLocaleString());
+    console.log("Swap2 预期输出:", expectedOut2.toLocaleString());
+    console.log("Swap2 输出误差:", actualOut2 - expectedOut2);
 
     // 7. 验证手续费是否保留在 vault 中
     // 手续费应该保留在 vault_in 中（因为 amount_in 全部转入，但 amount_out 是基于 amount_in_minus_fees 计算的）
@@ -631,8 +563,9 @@ describe("anyswap", () => {
     const vault2Increase = Number(vault2BalanceAfterSwap2.amount) - Number(vault2BalanceBeforeSwap2.amount);
     const vault0Decrease = Number(vault0BalanceBeforeSwap2.amount) - Number(vault0BalanceAfterSwap2.amount);
     
-    expect(vault2Increase).to.equal(swapAmount2); // vault2 应该增加 swapAmount2
-    expect(vault0Decrease).to.equal(expectedAmountOut2); // vault0 应该减少 expectedAmountOut2
+    const amountIn2AfterFee = swapAmount2 - expectedFee2; // 扣除手续费后进入vault的金额
+    expect(Math.abs(vault2Increase - amountIn2AfterFee)).to.be.lessThanOrEqual(1); // vault2 增加扣费后的金额（允许±1误差）
+    expect(Math.abs(vault0Decrease - expectedOut2)).to.be.lessThanOrEqual(2); // vault0 减少输出量（允许±2误差）
     
     // 手续费保留在 vault 中：vault_in 收到的比应该收到的多（因为手续费）
     // 总手续费 = expectedFee1 + expectedFee2

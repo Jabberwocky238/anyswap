@@ -26,8 +26,9 @@ pub mod anyswap {
     pub fn add_token_to_pool<'remaining: 'info, 'info>(
         ctx: Context<'_, '_, 'remaining, 'info, AddTokenToPool<'info>>,
         weight: u64,
+        liquidity: u64,
     ) -> Result<()> {
-        instructions::add_token_to_pool(ctx, weight)
+        instructions::add_token_to_pool(ctx, weight, liquidity)
     }
 
     /// 从 AnySwap Pool 移除 token
