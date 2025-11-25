@@ -1,6 +1,7 @@
 pub mod math;
 pub mod fixedpoint;
 pub mod logexpmath;
+pub mod logexpmath2;
 pub mod i256;
 
 // 运行测试: cargo test --manifest-path programs/anyswap/Cargo.toml test_three_token_swap --lib
