@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "description": "TypeScript client library for AnySwap protocol",
   "main": "dist/index.js",
-  "module": "src/index.ts",
+  "module": "lib/index.ts",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./src/index.ts",
+      "import": "./lib/index.ts",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }

@@ -65,7 +65,6 @@ describe("anyswap LP 测试", () => {
     connection: anchor.web3.Connection,
     payer: anchor.Wallet,
     poolCreator: anchor.web3.Keypair,
-    poolId: anchor.BN,
     feeNumerator: anchor.BN,
     feeDenominator: anchor.BN
   ): Promise<{
@@ -101,7 +100,7 @@ describe("anyswap LP 测试", () => {
     });
 
     const createPoolIx = await program.methods
-      .createPool(poolId, feeNumerator, feeDenominator)
+      .createPool(feeNumerator, feeDenominator)
       .accountsPartial({
         poolCreator: poolCreator.publicKey,
         pool: pool,
@@ -150,7 +149,6 @@ describe("anyswap LP 测试", () => {
       connection,
       payer,
       admin,
-      poolId,
       fee_numerator,
       fee_denominator
     );

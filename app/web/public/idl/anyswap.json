@@ -372,13 +372,6 @@
         },
         {
           "name": "pool",
-          "docs": [
-            "Pool 账户",
-            "注意：账户必须由客户端预先创建（使用 SystemProgram.createAccount）",
-            "因为账户太大（约 72KB），超过了 Solana CPI 中重新分配的限制（10KB）",
-            "使用 #[account(zero)] 而不是 #[account(init)] 来避免重新分配",
-            "账户不是 PDA，而是普通账户（类似 Openbook 的 bids/asks），由客户端生成 Keypair"
-          ],
           "writable": true
         },
         {
@@ -473,10 +466,6 @@
         }
       ],
       "args": [
-        {
-          "name": "pool_id",
-          "type": "u64"
-        },
         {
           "name": "fee_numerator",
           "type": "u64"
@@ -834,11 +823,7 @@
         69,
         54,
         192
-      ],
-      "type": {
-        "defined": "AnySwapPool"
-      },
-      "size": 73792
+      ]
     }
   ],
   "errors": [
@@ -960,7 +945,6 @@
       "repr": {
         "kind": "c"
       },
-      "size": 73792,
       "type": {
         "kind": "struct",
         "fields": [

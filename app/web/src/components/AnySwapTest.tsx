@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import * as anchor from '@coral-xyz/anchor';
 import { Program, Idl } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { AdminClient, Client } from '@anyswap/client';
+import { Client } from '@anyswap/client';
 import CreateToken from './CreateToken';
 import MintToken from './MintToken';
 import PoolManagement from './PoolManagement';
@@ -22,20 +22,11 @@ interface TokenInfo {
   mint: string;
 }
 
-interface ClientPoolToken {
-  mint: { toString(): string };
-  vault: { toString(): string };
-  weight: { toString(): string };
-}
-
 function AnySwapTest() {
   const { connection } = useConnection();
   const wallet = useWallet();
   const { publicKey, signTransaction, signAllTransactions } = wallet;
-
-  const [program, setProgram] = useState<Program<Idl> | null>(null);
-  const [adminClient, setAdminClient] = useState<AdminClient | null>(null);
-  const [client, setClient] = useState<Client | null>(null);
+  const { client, program, setClient, setProgram } = useClient();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [poolAddress, setPoolAddress] = useState<string>('');
@@ -217,8 +208,7 @@ function AnySwapTest() {
       ) as any;
       
       setProgram(programInstance);
-      setAdminClient(new AdminClient(provider, programInstance as any));
-      setClient(new Client(provider, programInstance as any));
+      setClient(new Client(provider));
       setStatus('程序初始化成功，可以开始使用');
     } catch (error: any) {
       console.error('程序初始化失败:', error);
@@ -257,10 +247,10 @@ function AnySwapTest() {
 
     try {
       setPoolInfoLoading(true);
-      const info = await client.getPool(poolPubkey)
+      const info = await client.getPoolInfo(poolPubkey)
 
       setPoolInfo({
-        address: info.address.toString(),
+        address: poolPubkey.toString(),
         admin: info.admin.toString(),
         feeNumerator: info.feeNumerator.toString(),
         feeDenominator: info.feeDenominator.toString(),
@@ -338,7 +328,7 @@ function AnySwapTest() {
         />
 
         <AdminActions
-          adminClient={adminClient}
+          client={client}
           publicKey={publicKey}
           poolAddress={poolAddress}
           loading={loading}
@@ -347,12 +337,12 @@ function AnySwapTest() {
           onPoolCreated={handlePoolCreated}
         />
 
-        <UserActions
-          client={client}
-          program={program}
+        <UserActions  
           connection={connection}
           publicKey={publicKey}
           signTransaction={signTransaction}
+          client={client}
+          program={program}
           poolAddress={poolAddress}
           loading={loading}
           onStatusChange={setStatus}
@@ -369,4 +359,35 @@ function AnySwapTest() {
   );
 }
 
-export default AnySwapTest;
+const ClientContext = createContext<{
+  client: Client | null;
+  program: Program<Idl> | null;
+  setClient: (client: Client) => void;
+  setProgram: (program: Program<Idl>) => void;
+} | null>(null);
+
+function ClientProvider({ children }: { children: React.ReactNode }) {
+  const [client, setClient] = useState<Client | null>(null);
+  const [program, setProgram] = useState<Program<Idl> | null>(null);
+  return (
+    <ClientContext.Provider value={{ client, program, setClient, setProgram }}>
+      {children}
+    </ClientContext.Provider>
+  );
+}
+
+export function useClient() {
+  const client = useContext(ClientContext);
+  if (!client) {
+    throw new Error('Client not found');
+  }
+  return client;
+};
+
+export default function() {
+  return (
+    <ClientProvider>
+      <AnySwapTest />
+    </ClientProvider>
+  );
+}

@@ -1,10 +1,14 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
-import AnySwapTest from './components/AnySwapTest';
+import Navigation from './components/Navigation';
+import TokenOperations from './components/pages/TokenOperations';
+import PoolOperations from './components/pages/PoolOperations';
+import LiquidityOperations from './components/pages/LiquidityOperations';
 import ErrorBoundary from './components/ErrorBoundary';
 import '@solana/wallet-adapter-react-ui/styles.css';
 import './App.css';
@@ -17,7 +21,6 @@ function App() {
     return clusterApiUrl(network);
   }, [network]);
 
-
   // 在开发模式下，可以选择不使用 ErrorBoundary 以查看 Vite 的错误覆盖层
   const useErrorBoundary = false;
 
@@ -25,15 +28,19 @@ function App() {
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={[new PhantomWalletAdapter()]} autoConnect>
         <WalletModalProvider>
-          <div className="app">
-            <header className="app-header">
-              <h1>AnySwap 测试页面</h1>
-              <p>使用 Phantom 钱包在测试网测试 AnySwap 协议</p>
-            </header>
-            <main className="app-main">
-              <AnySwapTest />
-            </main>
-          </div>
+          <BrowserRouter>
+            <div className="app">
+              <Navigation />
+              <main className="app-main">
+                <Routes>
+                  <Route path="/" element={<Navigate to="/tokens" replace />} />
+                  <Route path="/tokens" element={<TokenOperations />} />
+                  <Route path="/pools" element={<PoolOperations />} />
+                  <Route path="/liquidity" element={<LiquidityOperations />} />
+                </Routes>
+              </main>
+            </div>
+          </BrowserRouter>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>

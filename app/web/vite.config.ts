@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@anyswap/client': path.resolve(__dirname, '../src'),
+      '@anyswap/client': path.resolve(__dirname, '../lib'),
     },
   },
   define: {

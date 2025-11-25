@@ -9,18 +9,15 @@ declare_id!("3GBxn5VSThpKNyUgaQ96xjSXD2zJ1164LzK28MXv4MDC");
 
 #[program]
 pub mod anyswap {
-
     use super::*;
-
 
     /// 创建 Pool（PDA）
     pub fn create_pool(
         ctx: Context<CreatePool>,
-        pool_id: u64,
         fee_numerator: u64,
         fee_denominator: u64,
     ) -> Result<()> {
-        instructions::create_pool(ctx, pool_id, fee_numerator, fee_denominator)
+        instructions::create_pool(ctx, fee_numerator, fee_denominator)
     }
 
     /// 添加 token 到 AnySwap Pool

@@ -48,8 +48,14 @@ export default function CreateToken({
         decimals
       );
 
-      onTokenCreated(result.tokenInfo);
-      onStatusChange(`Token 创建成功！\n名称: ${result.tokenInfo.name}\n符号: ${result.tokenInfo.symbol}\n小数位数: ${result.tokenInfo.decimals}\nMint 地址: ${result.tokenInfo.mint}\n交易签名: ${result.signature}`);
+      onTokenCreated({
+        name: result.name,
+        symbol: result.symbol,
+        decimals: result.decimals,
+        mint: result.mint.toString(),
+      });
+      
+      onStatusChange(`Token 创建成功！\n名称: ${result.name}\n符号: ${result.symbol}\n小数位数: ${result.decimals}\nMint 地址: ${result.mint.toString()}\n交易签名: ${result.signature || '已确认'}`);
       
       // 清空输入框
       setTokenName('');

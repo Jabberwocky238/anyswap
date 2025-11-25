@@ -5,24 +5,18 @@ use crate::error::ErrorCode;
 
 /// 创建 Pool（PDA）
 /// 每个 Pool 可以包含多个 token（最多 1024 个）
-/// 使用 pool_creator 作为唯一标识符来区分不同的 pool（类似 ammv2 使用 mint0 和 mint1）
 #[derive(Accounts)]
 pub struct CreatePool<'info> {
     /// Pool creator - 用于区分不同的 pool
     /// 可以是任何账户，只要保证唯一性即可
-    /// CHECK: Used as seed to create unique pool PDA
+    /// CHECK: 用于区分不同的 pool
     pub pool_creator: AccountInfo<'info>,
 
-    /// Pool 账户
-    /// 注意：账户必须由客户端预先创建（使用 SystemProgram.createAccount）
-    /// 因为账户太大（约 72KB），超过了 Solana CPI 中重新分配的限制（10KB）
-    /// 使用 #[account(zero)] 而不是 #[account(init)] 来避免重新分配
-    /// 账户不是 PDA，而是普通账户（类似 Openbook 的 bids/asks），由客户端生成 Keypair
     #[account(zero)]
     pub pool: AccountLoader<'info, AnySwapPool>,
 
     /// Pool authority PDA - 用于管理该 pool 的所有 vault
-    /// CHECK: PDA derived from pool key, used as token account owner
+    /// CHECK: 用于管理该 pool 的所有 vault
     #[account(
         seeds = [b"anyswap_authority", pool.key().as_ref()],
         bump
@@ -53,13 +47,11 @@ pub struct CreatePool<'info> {
 }
 
 /// 创建 Pool
-/// pool_id: Pool 的唯一标识符，同一个 creator 可以使用不同的 pool_id 创建多个 pool
 /// fee_numerator: 手续费分子
 /// fee_denominator: 手续费分母
 /// 例如：fee_numerator=3, fee_denominator=1000 表示 0.3% 手续费
 pub fn create_pool(
     ctx: Context<CreatePool>,
-    _pool_id: u64, // 用于推导 PDA，在函数体中不需要使用
     fee_numerator: u64,
     fee_denominator: u64,
 ) -> Result<()> {

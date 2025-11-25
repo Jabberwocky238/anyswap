@@ -122,12 +122,14 @@ pub fn swap_anyswap(
     );
     
     // 验证恒定乘积和公式
-    // 由于 weight 是不变量，我们只需要验证 amount_in_minus_fees * weight_in = amount_out * weight_out
+    // 由于 weight 是不变量，我们只需要验证 amount_in_minus_fees * weight_in >= amount_out * weight_out
+    // 注意：由于整数除法向下取整，delta_out 可能略小于 delta_in，这是允许的
     let weight_in = token_in.get_weight();
     let weight_out = token_out.get_weight();
     
-    // 验证：amount_in_minus_fees * weight_in = amount_out * weight_out
-    // 这等价于验证 invariant 保持不变（对于两个 token 的交换）
+    // 验证：amount_in_minus_fees * weight_in >= amount_out * weight_out
+    // 由于 amount_out = (amount_in_minus_fees * weight_in) / weight_out（整数除法向下取整）
+    // 所以 delta_out = amount_out * weight_out <= amount_in_minus_fees * weight_in = delta_in
     let delta_in = (amount_in_minus_fees as u128)
         .checked_mul(weight_in as u128)
         .ok_or(ErrorCode::MathOverflow)?;
@@ -135,8 +137,10 @@ pub fn swap_anyswap(
         .checked_mul(weight_out as u128)
         .ok_or(ErrorCode::MathOverflow)?;
     
+    // 验证：delta_out <= delta_in（允许整数除法的舍入误差）
+    // 如果 delta_out > delta_in，说明计算有误
     require!(
-        delta_in == delta_out,
+        delta_out <= delta_in,
         ErrorCode::MathOverflow
     );
     
