@@ -41,9 +41,9 @@ pub mod anyswap {
     /// 修改 token 的 weight
     pub fn modify_token_weight(
         ctx: Context<ModifyTokenWeight>,
-        new_weight: u64,
+        new_weights: Vec<u64>,
     ) -> Result<()> {
-        instructions::modify_token_weight(ctx, new_weight)
+        instructions::modify_token_weight(ctx, new_weights)
     }
 
     /// 修改 pool 的费率

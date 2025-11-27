@@ -1,0 +1,208 @@
+/* 指令卡片样式 */
+.instruction-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.instruction-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.instruction-card h3 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.3em;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+/* 表单组样式 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #34495e;
+  font-size: 0.95em;
+  margin-top: 8px;
+}
+
+.form-group label:first-of-type {
+  margin-top: 0;
+}
+
+/* 输入框样式 */
+.form-input, .form-select {
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.form-input:disabled, .form-select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-select {
+  cursor: pointer;
+}
+
+/* 按钮样式 */
+.action-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  font-family: inherit;
+}
+
+.action-button.primary {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+}
+
+.action-button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.action-button.danger {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+}
+
+.action-button.danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+.action-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 状态消息样式 */
+.status-message {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 0.95em;
+  line-height: 1.5;
+  border-left: 4px solid #95a5a6;
+  background: #ecf0f1;
+  color: #2c3e50;
+}
+
+.status-message.success {
+  background: #d5f4e6;
+  border-left-color: #27ae60;
+  color: #1e8449;
+}
+
+.status-message.error {
+  background: #fadbd8;
+  border-left-color: #e74c3c;
+  color: #c0392b;
+}
+
+/* 信息文本样式 */
+.info-text {
+  padding: 10px 14px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: #5a6c7d;
+  border-left: 3px solid #3498db;
+}
+
+/* 结果框样式 */
+.result-box {
+  margin-top: 16px;
+  padding: 16px;
+  background: #e8f8f5;
+  border: 2px solid #1abc9c;
+  border-radius: 8px;
+  font-size: 0.95em;
+}
+
+.result-box strong {
+  color: #16a085;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.result-box div {
+  margin: 4px 0;
+  color: #2c3e50;
+}
+
+/* 地址显示样式 */
+.address-display {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.85em;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  word-break: break-all;
+  margin-top: 4px;
+  color: #555;
+}
+
+/* 页面容器样式 */
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-description {
+  color: #7f8c8d;
+  font-size: 1.1em;
+  margin-bottom: 30px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .instruction-card {
+    padding: 16px;
+  }
+  
+  .instruction-card h3 {
+    font-size: 1.1em;
+  }
+  
+  .action-button {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .page-container {
+    padding: 12px;
+  }
+}
+

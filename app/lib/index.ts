@@ -1,4 +1,4 @@
-import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
+import { ComputeBudgetProgram, Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import { Program, BN } from "@coral-xyz/anchor";
 import type { Anyswap } from "../../target/types/anyswap";
 import type { Idl } from "@coral-xyz/anchor";
@@ -6,14 +6,10 @@ import * as token from "@solana/spl-token";
 // @ts-ignore
 import idl from "../../target/idl/anyswap.json";
 import {
-    utils,
     type Provider,
-    getProvider,
 } from '@coral-xyz/anchor';
 
-const WSOL_MINT = new PublicKey("So11111111111111111111111111111111111111112");
-
-export class Client {
+export class AnySwap {
     private provider: Provider;
     private program: Program<Anyswap>;
     private connection: Connection;
@@ -100,7 +96,8 @@ export class Client {
             createPoolIx
         );
 
-        const signature = await this.provider.sendAndConfirm(tx, [this.provider.wallet.payer, poolKeypair], {
+        // 使用 sendAndConfirm 发送交易，poolKeypair 作为额外签名者
+        const signature = await this.provider.sendAndConfirm!(tx, [poolKeypair], {
             skipPreflight: false,
         });
 
@@ -118,41 +115,23 @@ export class Client {
         pool: PublicKey,
         mint: PublicKey,
         weight: BN,
+        liquidity: BN,
         existingVaults: PublicKey[] = [],
         admin?: PublicKey
     ): Promise<string> {
-        const adminPubkey = admin || this.provider.wallet.publicKey;
-        const [poolAuthority] = this.getPoolAuthority(pool);
-        const vault = this.getVault(pool, mint);
-        const adminToken = await token.getAssociatedTokenAddress(
-            mint,
-            adminPubkey,
-            false,
-            token.TOKEN_PROGRAM_ID,
-            token.ASSOCIATED_TOKEN_PROGRAM_ID
-        );
-
-        const accounts: any = {
-            pool: pool,
-            poolAuthority: poolAuthority,
-            mint: mint,
-            vault: vault,
-            adminToken: adminToken,
-            admin: adminPubkey,
-            payer: this.provider.wallet.publicKey,
-            tokenProgram: token.TOKEN_PROGRAM_ID,
-            associatedTokenProgram: token.ASSOCIATED_TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
-        };
-
+        const adminPubkey = admin || this.provider.wallet!.publicKey;
         const remainingAccounts = existingVaults.flatMap((vault) => [
             { pubkey: vault, isWritable: false, isSigner: false },
         ]);
 
         return await this.program.methods
-            .addTokenToPool(weight)
-            .accounts(accounts)
+            .addTokenToPool(weight, liquidity)
+            .accounts({
+                pool: pool,
+                mint: mint,
+                admin: adminPubkey,
+                payer: this.provider.wallet!.publicKey,
+            })
             .remainingAccounts(remainingAccounts)
             .rpc();
     }
@@ -165,7 +144,7 @@ export class Client {
         vaultAccounts: PublicKey[],
         owner?: PublicKey
     ): Promise<string> {
-        const ownerPubkey = owner || this.provider.wallet.publicKey;
+        const ownerPubkey = owner || this.provider.wallet!.publicKey;
         const [poolAuthority] = this.getPoolAuthority(pool);
         const poolMint = this.getPoolMint(pool);
         const userPoolAta = await token.getAssociatedTokenAddress(
@@ -207,7 +186,7 @@ export class Client {
         vaultAccounts: PublicKey[],
         owner?: PublicKey
     ): Promise<string> {
-        const ownerPubkey = owner || this.provider.wallet.publicKey;
+        const ownerPubkey = owner || this.provider.wallet!.publicKey;
         const [poolAuthority] = this.getPoolAuthority(pool);
         const poolMint = this.getPoolMint(pool);
         const userPoolAta = await token.getAssociatedTokenAddress(
@@ -244,27 +223,62 @@ export class Client {
     // 交换代币
     async swap(
         pool: PublicKey,
-        amountIn: BN,
-        minAmountOut: BN,
-        vaultIn: PublicKey,
-        vaultOut: PublicKey,
-        userIn: PublicKey,
-        userOut: PublicKey,
+        inlets: {
+            amount: BN,
+            vault: PublicKey,
+            user: PublicKey,
+        }[],
+        outlets: {
+            amount: BN,
+            vault: PublicKey,
+            user: PublicKey,
+        }[],
         owner?: PublicKey
     ): Promise<string> {
-        const ownerPubkey = owner || this.provider.wallet.publicKey;
-
+        const ownerPubkey = owner || this.provider.wallet!.publicKey;
+        const intos = []
+        for (const inlet of inlets) {
+            intos.push({
+                amount: inlet.amount,
+                vault: inlet.vault,
+                user: inlet.user,
+                isIn: true,
+            })
+        }
+        for (const outlet of outlets) {
+            intos.push({
+                amount: outlet.amount,
+                vault: outlet.vault,
+                user: outlet.user,
+                isIn: false,
+            })
+        }
+        const amounts_tolerance = intos.map(into => into.amount);
+        const is_in_token = intos.map(into => into.isIn);
+        const remainingAccounts = []
+        for (const item of intos) {
+            remainingAccounts.push({ pubkey: item.user, isWritable: true, isSigner: false });
+            remainingAccounts.push({ pubkey: item.vault, isWritable: true, isSigner: false });
+        }
+        let cu;
+        if (intos.length == 2) {
+            cu = 400_000;
+        } else if (intos.length <= 6) {
+            cu = 400_000 + 200_000 * intos.length;
+        } else {
+            throw new Error("Too many tokens to swap");
+        }
         return await this.program.methods
-            .swapAnyswap(amountIn, minAmountOut)
+            .swapAnyswap(amounts_tolerance, is_in_token)
             .accountsPartial({
                 pool: pool,
-                vaultIn: vaultIn,
-                vaultOut: vaultOut,
-                userIn: userIn,
-                userOut: userOut,
                 owner: ownerPubkey,
                 tokenProgram: token.TOKEN_PROGRAM_ID,
             })
+            .preInstructions([
+                ComputeBudgetProgram.setComputeUnitLimit({ units: cu })
+            ])
+            .remainingAccounts(remainingAccounts)
             .rpc();
     }
 
@@ -275,7 +289,7 @@ export class Client {
         feeDenominator: BN,
         admin?: PublicKey
     ): Promise<string> {
-        const adminPubkey = admin || this.provider.wallet.publicKey;
+        const adminPubkey = admin || this.provider.wallet!.publicKey;
 
         return await this.program.methods
             .modifyFee(feeNumerator, feeDenominator)
@@ -289,19 +303,19 @@ export class Client {
     // 修改 Token 权重
     async modifyTokenWeight(
         pool: PublicKey,
-        mint: PublicKey,
-        newWeight: BN,
+        newWeights: BN[],
+        mints: PublicKey[] = [],
         admin?: PublicKey
     ): Promise<string> {
-        const adminPubkey = admin || this.provider.wallet.publicKey;
+        const adminPubkey = admin || this.provider.wallet!.publicKey;
 
         return await this.program.methods
-            .modifyTokenWeight(newWeight)
+            .modifyTokenWeight(newWeights)
             .accounts({
                 pool: pool,
-                mint: mint,
                 admin: adminPubkey,
             })
+            .remainingAccounts(mints.map(mint => ({ pubkey: mint, isWritable: false, isSigner: false })))
             .rpc();
     }
 
@@ -311,13 +325,17 @@ export class Client {
         mint: PublicKey,
         admin?: PublicKey
     ): Promise<string> {
-        const adminPubkey = admin || this.provider.wallet.publicKey;
+        const adminPubkey = admin || this.provider.wallet!.publicKey;
+        const [poolAuthority] = this.getPoolAuthority(pool);
+        const vault = this.getVault(pool, mint);
 
         return await this.program.methods
             .removeTokenFromPool()
-            .accounts({
+            .accountsPartial({
                 pool: pool,
+                poolAuthority: poolAuthority,
                 mint: mint,
+                vault: vault,
                 admin: adminPubkey,
             })
             .rpc();
@@ -327,7 +345,7 @@ export class Client {
     async getPoolInfo(pool: PublicKey) {
         const poolInfo = await this.program.account.anySwapPool.fetch(pool);
         const lpMint = this.getPoolMint(pool);
-        const lpSupply = await token.getAssociatedTokenAddress(lpMint, this.provider.wallet.publicKey);
+        const lpSupply = await token.getAssociatedTokenAddress(lpMint, this.provider.wallet!.publicKey);
         return {
             lpMint: lpMint,
             lpSupply: lpSupply,
@@ -336,3 +354,10 @@ export class Client {
         };
     }
 }
+
+// 导出所需的类型和依赖
+export { BN, type Provider } from '@coral-xyz/anchor';
+export { PublicKey } from '@solana/web3.js';
+export type { Anyswap } from "../../target/types/anyswap";
+// @ts-ignore
+export { default as IDL } from "../../target/idl/anyswap.json";

@@ -13,7 +13,7 @@
     "moduleResolution": "node",
     "types": ["node", "mocha", "chai"]
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["lib/**/*"],
+  "exclude": ["node_modules", "dist", "tests"]
 }
 

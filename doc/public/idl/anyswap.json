@@ -11,7 +11,7 @@
       "name": "add_liquidity",
       "docs": [
         "添加流动性（多 token 版本，按 Balancer 方式）",
-        "amounts: 每个 token 的添加数量（按 pool 中 token 的顺序）",
+        "pivot_amount: 基准 token 的添加数量",
         "RemainingAccounts: 每两个账户为一对 (user_token_account, vault_account)"
       ],
       "discriminator": [
@@ -112,7 +112,7 @@
       ],
       "args": [
         {
-          "name": "amounts",
+          "name": "amounts_in",
           "type": {
             "vec": "u64"
           }
@@ -216,8 +216,7 @@
         {
           "name": "admin_token",
           "docs": [
-            "Admin 的 token 账户（提供流动性）",
-            "如果 pool 中已有流动性，必须提供新 token 的流动性",
+            "Admin 的 token 账户（可选提供初始流动性）",
             "使用 AssociatedToken 自动验证是 admin 的 ATA"
           ],
           "writable": true,
@@ -343,6 +342,10 @@
       "args": [
         {
           "name": "weight",
+          "type": "u64"
+        },
+        {
+          "name": "liquidity",
           "type": "u64"
         }
       ]
@@ -536,12 +539,6 @@
           "writable": true
         },
         {
-          "name": "mint",
-          "docs": [
-            "要修改的 token 的 mint 账户"
-          ]
-        },
-        {
           "name": "admin",
           "docs": [
             "Pool 管理员 - 必须签名所有操作"
@@ -551,8 +548,10 @@
       ],
       "args": [
         {
-          "name": "new_weight",
-          "type": "u64"
+          "name": "new_weights",
+          "type": {
+            "vec": "u64"
+          }
         }
       ]
     },
@@ -687,17 +686,87 @@
           "writable": true
         },
         {
+          "name": "pool_authority",
+          "docs": [
+            "Pool authority PDA - 用于签名关闭 vault"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  121,
+                  115,
+                  119,
+                  97,
+                  112,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
           "name": "mint",
           "docs": [
             "要移除的 token 的 mint 账户"
           ]
         },
         {
+          "name": "vault",
+          "docs": [
+            "Token 的 vault 账户 - 需要关闭"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
           "name": "admin",
           "docs": [
             "Pool 管理员 - 必须签名所有操作"
           ],
+          "writable": true,
           "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": []
@@ -705,7 +774,9 @@
     {
       "name": "swap_anyswap",
       "docs": [
-        "AnySwap 交换代币"
+        "AnySwap 交换代币",
+        "amounts_tolerance: 每个 token 的容差（输入为上限，输出为下限）",
+        "is_in_token: 标记每个 token 是输入还是输出"
       ],
       "discriminator": [
         61,
@@ -759,40 +830,8 @@
           }
         },
         {
-          "name": "vault_in",
-          "docs": [
-            "输入 token 的 vault 账户"
-          ],
-          "writable": true
-        },
-        {
-          "name": "vault_out",
-          "docs": [
-            "输出 token 的 vault 账户"
-          ],
-          "writable": true
-        },
-        {
-          "name": "user_in",
-          "docs": [
-            "用户的输入代币账户（转出代币）"
-          ],
-          "writable": true
-        },
-        {
-          "name": "user_out",
-          "docs": [
-            "用户的输出代币账户（接收代币）"
-          ],
-          "writable": true
-        },
-        {
           "name": "owner",
-          "signer": true,
-          "relations": [
-            "user_in",
-            "user_out"
-          ]
+          "signer": true
         },
         {
           "name": "token_program",
@@ -801,12 +840,16 @@
       ],
       "args": [
         {
-          "name": "amount_in",
-          "type": "u64"
+          "name": "amounts_tolerance",
+          "type": {
+            "vec": "u64"
+          }
         },
         {
-          "name": "min_amount_out",
-          "type": "u64"
+          "name": "is_in_token",
+          "type": {
+            "vec": "bool"
+          }
         }
       ]
     }

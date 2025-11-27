@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "anyswap": "file:../app/",
+    "anyswap": "file:../app",
     "@coral-xyz/anchor": "^0.32.1",
     "@solana/spl-token": "^0.4.8",
     "@solana/wallet-adapter-base": "^0.9.23",
